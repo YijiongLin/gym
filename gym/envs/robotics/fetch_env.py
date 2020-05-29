@@ -1,7 +1,9 @@
 import numpy as np
 
 from gym.envs.robotics import rotations, robot_env, utils
+from ipdb import set_trace
 
+############################### 5 parts in tatol are added by ray in this file ###########################################
 
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
@@ -15,7 +17,7 @@ class FetchEnv(robot_env.RobotEnv):
     def __init__(
         self, model_path, n_substeps, gripper_extra_height, block_gripper,
         has_object, target_in_the_air, target_offset, obj_range, target_range,
-        distance_threshold, initial_qpos, reward_type,
+        distance_threshold, initial_qpos, reward_type, obstacle_added = False,
     ):
         """Initializes a new Fetch environment.
 
@@ -42,11 +44,17 @@ class FetchEnv(robot_env.RobotEnv):
         self.target_range = target_range
         self.distance_threshold = distance_threshold
         self.reward_type = reward_type
-
+        self.obstacle_added = obstacle_added   # added by ray 1
+        self.obstacle_added_tem_pos = 0
+        self.obstacle_test_mode = False
+        self.obstacle_bid_0 = 0  # added by ray 2_necessary
+        # self.obstacle_bid_1 = 0  # added by ray 2_necessary
         super(FetchEnv, self).__init__(
             model_path=model_path, n_substeps=n_substeps, n_actions=4,
             initial_qpos=initial_qpos)
 
+        self.obstacle_bid_0 = self.model.body_name2id('obstacle_0') # added by ray 3 connect to xml object name 
+        # self.obstacle_bid_1 = self.model.body_name2id('obstacle_1') # added by ray 3 connect to xml object name 
     # GoalEnv methods
     # ----------------------------
 
@@ -114,6 +122,19 @@ class FetchEnv(robot_env.RobotEnv):
             object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
         ])
 
+        # obstacle state
+            
+        if self.obstacle_added:     # added by ray 4
+            obstacle_0_pos = self.model.body_pos[self.obstacle_bid_0].ravel().copy() 
+            # obstacle_0_rot_z = np.array([0,])
+            obstacle_0_quat = self.model.body_quat[self.obstacle_bid_0].ravel().copy()
+            # convert quat to eular
+            obstacle_0_rot = rotations.quat2euler(obstacle_0_quat).ravel().copy()
+            
+            obs = np.concatenate([
+                grip_pos, object_pos.ravel(), object_rel_pos.ravel(), gripper_state, object_rot.ravel(),
+                object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel, obstacle_0_pos,obstacle_0_rot
+            ])
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
@@ -141,6 +162,21 @@ class FetchEnv(robot_env.RobotEnv):
 
         # Randomize start position of object.
         if self.has_object:
+
+            if self.obstacle_test_mode:
+                # object initial pos
+                object_xpos=self.initial_gripper_xpos[:2]+np.array([0,-0.1])
+                object_qpos = self.sim.data.get_joint_qpos('object0:joint')
+                assert object_qpos.shape == (7,)
+                object_qpos[:2] = object_xpos
+                self.sim.data.set_joint_qpos('object0:joint', object_qpos)
+                # obstacle initial pos
+                self.model.body_pos[self.obstacle_bid_0]=self.initial_gripper_xpos[:3]
+                self.sim.forward()
+                return True, 0
+
+
+            #the obstacle force end effector intial pos out of the middle of desk, so need to offset the object initial pos
             object_xpos = self.initial_gripper_xpos[:2]
             while np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1:
                 object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(-self.obj_range, self.obj_range, size=2)
@@ -149,16 +185,30 @@ class FetchEnv(robot_env.RobotEnv):
             object_qpos[:2] = object_xpos
             self.sim.data.set_joint_qpos('object0:joint', object_qpos)
 
-        self.sim.forward()
-        return True
+        if self.obstacle_added: # added by ray 5
+            self.model.body_pos[self.obstacle_bid_0,0] = self.np_random.uniform(low=1.15, high=1.45)  
+            self.model.body_pos[self.obstacle_bid_0,1] = self.np_random.uniform(low=0.6, high=0.9) 
+            self.model.body_pos[self.obstacle_bid_0,2] = 0.425 
+            obstacle_added_tem_pos =  self.model.body_pos[self.obstacle_bid_0].copy()
+            self.model.body_quat[self.obstacle_bid_0,3] = self.np_random.uniform(low=0, high=1)   
 
-    def _sample_goal(self):
+
+        self.sim.forward()
+        return True,obstacle_added_tem_pos
+
+    def _sample_goal(self,obstacle_added_tem_pos=np.array([0,0,0])):
+        if self.obstacle_test_mode:
+            goal = self.initial_gripper_xpos[:3]+np.array([0,0.1,0])
+            return goal.copy()
+
+        goal = obstacle_added_tem_pos.copy()
         if self.has_object:
-            goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(-self.target_range, self.target_range, size=3)
-            goal += self.target_offset
-            goal[2] = self.height_offset
-            if self.target_in_the_air and self.np_random.uniform() < 0.5:
-                goal[2] += self.np_random.uniform(0, 0.45)
+            while (goal_distance(goal, obstacle_added_tem_pos)<0.08):
+                goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(-self.target_range, self.target_range, size=3)
+                goal += self.target_offset
+                goal[2] = self.height_offset
+                if self.target_in_the_air and self.np_random.uniform() < 0.5:
+                    goal[2] += self.np_random.uniform(0, 0.45)
         else:
             goal = self.initial_gripper_xpos[:3] + self.np_random.uniform(-0.15, 0.15, size=3)
         return goal.copy()
