@@ -1,7 +1,7 @@
 import os
 import copy
 import numpy as np
-
+from ipdb import set_trace
 import gym
 from gym import error, spaces
 from gym.utils import seeding
@@ -23,6 +23,9 @@ class RobotEnv(gym.GoalEnv):
             raise IOError('File {} does not exist'.format(fullpath))
 
         model = mujoco_py.load_model_from_path(fullpath)
+        
+        self.model = model # added by ray.  1 line in total is added in this file.
+
         self.sim = mujoco_py.MjSim(model, nsubsteps=n_substeps)
         self.viewer = None
         self._viewers = {}
@@ -79,8 +82,9 @@ class RobotEnv(gym.GoalEnv):
         super(RobotEnv, self).reset()
         did_reset_sim = False
         while not did_reset_sim:
-            did_reset_sim = self._reset_sim()
-        self.goal = self._sample_goal().copy()
+            did_reset_sim, obstacle_tem_pos = self._reset_sim()
+        # set_trace()
+        self.goal = self._sample_goal(obstacle_tem_pos).copy()
         obs = self._get_obs()
         return obs
 

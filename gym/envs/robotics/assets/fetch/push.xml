@@ -18,11 +18,29 @@
 		<body pos="1.3 0.75 0.2" name="table0">
 			<geom size="0.25 0.35 0.2" type="box" mass="2000" material="table_mat"></geom>
 		</body>
-		
+
 		<body name="object0" pos="0.025 0.025 0.025">
 			<joint name="object0:joint" type="free" damping="0.01"></joint>
 			<geom size="0.025 0.025 0.025" type="box" condim="3" name="object0" material="block_mat" mass="2"></geom>
 			<site name="object0" pos="0 0 0" size="0.02 0.02 0.02" rgba="1 0 0 1" type="sphere"></site>
+		</body>
+		
+		<!-- this body "obstacle_added" is added by ray -->
+		<!-- <body pos="1.525 0.425 0.425" name="obstacle_added"> -->
+		<!-- <body pos="1.075 0.425 0.425" name="obstacle_added"> -->
+		<!-- <body pos="1.075 1.075 0.425" name="obstacle_added"> -->
+		<!-- <body pos="1.525 1.075 0.425" name="obstacle_added"> -->
+
+		<!-- <body pos="1.15 0.60 0.425" name="obstacle_added"> -->
+		<!-- <body pos="1.45 0.60 0.425" name="obstacle_added"> -->
+		<!-- <body pos="1.45 0.90 0.425" name="obstacle_added"> -->
+		<!-- <body pos="1.15 0.90 0.425" name="obstacle_added"> -->
+
+		<body pos="1.3 0.75 0.425" quat="1 0 0 0" name="obstacle_0">
+			<geom size="0.08 0.025 0.06" type="box" condim="3" material="block_mat" rgba="0 1 0 1" mass="2"></geom>
+		</body>
+		<body pos="1.3 0.75 0.425" quat="1 0 0 0" name="obstacle_1">
+			<geom size="0.025 0.025 0.06" type="box" condim="3" material="block_mat" rgba="0 1 0 1" mass="2"></geom>
 		</body>
 
 		<light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false" pos="0 0 4" dir="0 0 -1" name="light0"></light>

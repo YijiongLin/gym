@@ -1,5 +1,5 @@
 import numpy as np
-
+from ipdb import set_trace
 from gym import error
 try:
     import mujoco_py
@@ -13,6 +13,7 @@ def robot_get_obs(sim):
     """
     if sim.data.qpos is not None and sim.model.joint_names:
         names = [n for n in sim.model.joint_names if n.startswith('robot')]
+        # set_trace()
         return (
             np.array([sim.data.get_joint_qpos(name) for name in names]),
             np.array([sim.data.get_joint_qvel(name) for name in names]),
