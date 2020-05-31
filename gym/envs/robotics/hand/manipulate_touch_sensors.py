@@ -10,7 +10,7 @@ MANIPULATE_EGG_XML = os.path.join('hand', 'manipulate_egg_touch_sensors.xml')
 MANIPULATE_PEN_XML = os.path.join('hand', 'manipulate_pen_touch_sensors.xml')
 
 
-class ManipulateTouchSensorsEnv(manipulate.ManipulateEnv):
+class ManipulateTouchSensorsEnv(manipulate.ManipulateEnv, utils.EzPickle):
     def __init__(
         self, model_path, target_position, target_rotation,
         target_position_range, reward_type, initial_qpos={},
@@ -46,6 +46,7 @@ class ManipulateTouchSensorsEnv(manipulate.ManipulateEnv):
             distance_threshold=distance_threshold, rotation_threshold=rotation_threshold, n_substeps=n_substeps, relative_control=relative_control,
             ignore_z_target_rotation=ignore_z_target_rotation,
         )
+        utils.EzPickle.__init__(self)
 
         for k, v in self.sim.model._sensor_name2id.items():  # get touch sensor site names and their ids
             if 'robot0:TS_' in k:
@@ -94,10 +95,9 @@ class ManipulateTouchSensorsEnv(manipulate.ManipulateEnv):
         }
 
 
-class HandBlockTouchSensorsEnv(ManipulateTouchSensorsEnv, utils.EzPickle):
+class HandBlockTouchSensorsEnv(ManipulateTouchSensorsEnv):
     def __init__(self, target_position='random', target_rotation='xyz', touch_get_obs='sensordata', reward_type='sparse'):
-        utils.EzPickle.__init__(self, target_position, target_rotation, touch_get_obs, reward_type)
-        ManipulateTouchSensorsEnv.__init__(self,
+        super(HandBlockTouchSensorsEnv, self).__init__(
             model_path=MANIPULATE_BLOCK_XML,
             touch_get_obs=touch_get_obs,
             target_rotation=target_rotation,
@@ -106,10 +106,9 @@ class HandBlockTouchSensorsEnv(ManipulateTouchSensorsEnv, utils.EzPickle):
             reward_type=reward_type)
 
 
-class HandEggTouchSensorsEnv(ManipulateTouchSensorsEnv, utils.EzPickle):
+class HandEggTouchSensorsEnv(ManipulateTouchSensorsEnv):
     def __init__(self, target_position='random', target_rotation='xyz', touch_get_obs='sensordata', reward_type='sparse'):
-        utils.EzPickle.__init__(self, target_position, target_rotation, touch_get_obs, reward_type)
-        ManipulateTouchSensorsEnv.__init__(self,
+        super(HandEggTouchSensorsEnv, self).__init__(
             model_path=MANIPULATE_EGG_XML,
             touch_get_obs=touch_get_obs,
             target_rotation=target_rotation,
@@ -118,10 +117,9 @@ class HandEggTouchSensorsEnv(ManipulateTouchSensorsEnv, utils.EzPickle):
             reward_type=reward_type)
 
 
-class HandPenTouchSensorsEnv(ManipulateTouchSensorsEnv, utils.EzPickle):
+class HandPenTouchSensorsEnv(ManipulateTouchSensorsEnv):
     def __init__(self, target_position='random', target_rotation='xyz', touch_get_obs='sensordata', reward_type='sparse'):
-        utils.EzPickle.__init__(self, target_position, target_rotation, touch_get_obs, reward_type)
-        ManipulateTouchSensorsEnv.__init__(self,
+        super(HandPenTouchSensorsEnv, self).__init__(
             model_path=MANIPULATE_PEN_XML,
             touch_get_obs=touch_get_obs,
             target_rotation=target_rotation,

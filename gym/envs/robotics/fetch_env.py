@@ -17,7 +17,8 @@ class FetchEnv(robot_env.RobotEnv):
     def __init__(
         self, model_path, n_substeps, gripper_extra_height, block_gripper,
         has_object, target_in_the_air, target_offset, obj_range, target_range,
-        distance_threshold, initial_qpos, reward_type, obstacle_added = False,
+        distance_threshold, initial_qpos, reward_type, 
+        obstacle_num = None,obstacle_added = False, env_type = None
     ):
         """Initializes a new Fetch environment.
 
@@ -44,18 +45,20 @@ class FetchEnv(robot_env.RobotEnv):
         self.target_range = target_range
         self.distance_threshold = distance_threshold
         self.reward_type = reward_type
+        self.env_type=env_type
+        # obstacle set
+        self.obstacle_num = obstacle_num
         self.obstacle_added = obstacle_added   # added by ray 1
         self.obstacle_0_added_tem_pos = 0
         self.obstacle_test_mode = False
         self.obstacle_bid_0 = 0  # added by ray 2_necessary
         self.obstacle_bid_1 = 0  
         self.first_time_in_loop = True
+        self.used_obstacle_bid_list = []
         super(FetchEnv, self).__init__(
             model_path=model_path, n_substeps=n_substeps, n_actions=4,
             initial_qpos=initial_qpos)
-        # self.obstacle_bid_0 = self.model.body_name2id('obstacle_0') # added by ray 3 connect to xml object name 
-        # self.obstacle_bid_1 = self.model.body_name2id('obstacle_1') 
-        # self.obstacle_bid_list = [self.obstacle_bid_0, self.obstacle_bid_1]
+
     # GoalEnv methods
     # ----------------------------
 
@@ -128,33 +131,26 @@ class FetchEnv(robot_env.RobotEnv):
         if self.obstacle_added:     # added by ray 4
             
             if self.first_time_in_loop:
+                # First time goes in to init network dimention.
                 self.first_time_in_loop = False
-                self.obstacle_bid_0 = self.model.body_name2id('obstacle_0') # added by ray 3 connect to xml object name 
-                self.obstacle_bid_1 = self.model.body_name2id('obstacle_1') 
-                self.obstacle_bid_list = [self.obstacle_bid_0, self.obstacle_bid_1]
+                for i in range(self.obstacle_num):
+                    obstacle_id = "obstacle_" + str(i)
+                    self.used_obstacle_bid_list.append(self.model.body_name2id(obstacle_id))
+
             all_obstacles_states = np.array([])
-            for obstacle_bid in self.obstacle_bid_list:
+            for obstacle_bid in self.used_obstacle_bid_list:
                 obstacle_pos = self.model.body_pos[obstacle_bid].ravel().copy()
                 obstacle_quat = self.model.body_quat[obstacle_bid].ravel().copy()
                 obstacle_rot = rotations.quat2euler(obstacle_quat).ravel().copy()
                 temp_all_obstacles_states = np.concatenate([obstacle_pos, obstacle_rot])
                 all_obstacles_states = np.concatenate([all_obstacles_states,temp_all_obstacles_states])
-                # else:
-                #     all_obstacles_states = 
-            
-            # obstacle_0_pos = self.model.body_pos[self.obstacle_bid_0].ravel().copy() 
-            # obstacle_1_pos = self.model.body_pos[self.obstacle_bid_1].ravel().copy() 
-            # obstacle_0_quat = self.model.body_quat[self.obstacle_bid_0].ravel().copy()
-            # obstacle_1_quat = self.model.body_quat[self.obstacle_bid_1].ravel().copy()
-            # # convert quat to eular
-            # obstacle_0_rot = rotations.quat2euler(obstacle_0_quat).ravel().copy()
-            # obstacle_1_rot = rotations.quat2euler(obstacle_1_quat).ravel().copy()
-            
+
             obs = np.concatenate([
                 grip_pos, object_pos.ravel(), object_rel_pos.ravel(), gripper_state, object_rot.ravel(),
                 object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel, 
                 all_obstacles_states.ravel(),
             ])
+
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
@@ -205,30 +201,30 @@ class FetchEnv(robot_env.RobotEnv):
             object_qpos[:2] = object_xpos
             self.sim.data.set_joint_qpos('object0:joint', object_qpos)
 
-        if self.obstacle_added: # added by ray 5
-            # obstacle ID 0
-            for obstacle_bid in self.obstacle_bid_list:
-                self.model.body_pos[obstacle_bid,0] = self.np_random.uniform(low=1.15, high=1.45)  
-                self.model.body_pos[obstacle_bid,1] = self.np_random.uniform(low=0.6, high=0.9) 
-                self.model.body_pos[obstacle_bid,2] = 0.425 
-                self.model.body_quat[obstacle_bid,3] = self.np_random.uniform(low=0, high=1) 
-            obstacle_0_added_tem_pos =  self.model.body_pos[self.obstacle_bid_list[0]].copy()
-
-
-
-            # self.model.body_pos[self.obstacle_bid_0,0] = self.np_random.uniform(low=1.15, high=1.45)  
-            # self.model.body_pos[self.obstacle_bid_0,1] = self.np_random.uniform(low=0.6, high=0.9) 
-            # self.model.body_pos[self.obstacle_bid_0,2] = 0.425 
-            # obstacle_0_added_tem_pos =  self.model.body_pos[self.obstacle_bid_0].copy()
-            # self.model.body_quat[self.obstacle_bid_0,3] = self.np_random.uniform(low=0, high=1) 
-            # # obstacle ID 1
-            # self.model.body_pos[self.obstacle_bid_1,0] = self.np_random.uniform(low=1.15, high=1.45)  
-            # self.model.body_pos[self.obstacle_bid_1,1] = self.np_random.uniform(low=0.6, high=0.9) 
-            # self.model.body_pos[self.obstacle_bid_1,2] = 0.425 
-            # obstacle_1_added_tem_pos =  self.model.body_pos[self.obstacle_bid_1].copy()
-            # self.model.body_quat[self.obstacle_bid_1,3] = self.np_random.uniform(low=0, high=1)    
-
-
+            if self.obstacle_added: # added by ray 5
+                if self.env_type =="push":
+                    for obstacle_bid in self.used_obstacle_bid_list:
+                        self.model.body_pos[obstacle_bid,0] = self.np_random.uniform(low=1.15, high=1.45)  
+                        self.model.body_pos[obstacle_bid,1] = self.np_random.uniform(low=0.6, high=0.9) 
+                        self.model.body_pos[obstacle_bid,2] = 0.425 
+                        self.model.body_quat[obstacle_bid,3] = self.np_random.uniform(low=0, high=1) 
+                elif self.env_type == "pickandplace":
+                    for obstacle_bid in self.used_obstacle_bid_list:
+                        self.model.body_pos[obstacle_bid,0] = self.np_random.uniform(low=1.05, high=1.35)  
+                        self.model.body_pos[obstacle_bid,1] = self.np_random.uniform(low=0.6, high=0.9) 
+                        self.model.body_pos[obstacle_bid,2] = 0.425 + self.np_random.uniform(low=0, high=0.25)
+                        # All rotation
+                        self.model.body_quat[obstacle_bid,1] = self.np_random.uniform(low=0, high=1) 
+                        self.model.body_quat[obstacle_bid,2] = self.np_random.uniform(low=0, high=1) 
+                        self.model.body_quat[obstacle_bid,3] = self.np_random.uniform(low=0, high=1) 
+                elif self.env_type=="slide":
+                    for obstacle_bid in self.used_obstacle_bid_list:
+                        self.model.body_pos[obstacle_bid,0] = self.np_random.uniform(low=0.95, high=1.15)  
+                        self.model.body_pos[obstacle_bid,1] = self.np_random.uniform(low=0.6, high=0.9) 
+                        self.model.body_pos[obstacle_bid,2] = 0.425 
+                        self.model.body_quat[obstacle_bid,3] = self.np_random.uniform(low=0, high=1) 
+                    
+        obstacle_0_added_tem_pos = self.model.body_pos[self.used_obstacle_bid_list[0]]
         self.sim.forward()
         return True,obstacle_0_added_tem_pos
 
